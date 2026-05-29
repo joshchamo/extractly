@@ -73,7 +73,26 @@ async def fetch_page_analysis(url: str) -> dict:
             # Extract fields
             title = await page.title()
             
-            accessibility_tree = await page.accessibility.snapshot()
+            # Extract accessibility tree via CDP session since page.accessibility is deprecated/removed in Playwright Python
+            accessibility_tree = {}
+            try:
+                cdp = await page.context.new_cdp_session(page)
+                cdp_result = await cdp.send("Accessibility.getFullAXTree")
+                nodes = cdp_result.get("nodes", [])
+                filtered_nodes = []
+                for node in nodes:
+                    if node.get("ignored"):
+                        continue
+                    simplified = {
+                        "nodeId": node.get("nodeId"),
+                        "role": node.get("role", {}).get("value") if isinstance(node.get("role"), dict) else node.get("role"),
+                        "name": node.get("name", {}).get("value") if isinstance(node.get("name"), dict) else node.get("name"),
+                        "childIds": node.get("childIds", [])
+                    }
+                    filtered_nodes.append(simplified)
+                accessibility_tree = {"nodes": filtered_nodes}
+            except Exception:
+                accessibility_tree = {}
             
             try:
                 body_text = await page.inner_text('body')
