@@ -1,30 +1,3 @@
----
-title: Extractly — Turn Any Webpage Into a Spreadsheet
-emoji: 🕸️
-colorFrom: indigo
-colorTo: purple
-sdk: docker
-pinned: false
-short_description: Extract data from any webpage using plain English — no code, no extensions, no setup
-tags:
-  - playwright
-  - web-scraping
-  - data-extraction
-  - nlp
-  - fastapi
-  - groq
-  - llama
-  - automation
-  - no-code
-  - csv
-  - llm-scraper
-  - accessibility-tree
-  - chrome-devtools-protocol
-  - semantic-web
-  - fast-api
-  - uvicorn
----
-
 # Extractly 🕸️
 ### Turn Any Webpage Into a Spreadsheet Using Plain English
 
