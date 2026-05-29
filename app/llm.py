@@ -95,6 +95,9 @@ async def get_selectors_from_llm(title: str, accessibility_tree: dict, body_text
         "CRITICAL REQUIREMENT 3 (ACCURATE TEXT TARGETING):\n"
         "When extracting text fields (like a name, title, description, or text label), you MUST target the element containing the text content (e.g. 'h3', 'h3 a', or '.title-text'). "
         "Do NOT target wrapper links around images or empty elements (e.g. '.image_container a') as they do not contain the text directly.\n\n"
+        "CRITICAL REQUIREMENT 4 (PRIMARY LINK TARGETING):\n"
+        "When extracting a link or URL representing the item's main URL, do NOT target utility or layout links (like upvote arrows, category tags, author profiles, comments links, or share buttons). "
+        "You MUST target the main href link of the item (usually containing the title text or matching the main click target).\n\n"
         "Playwright supports multiple selector engines. You can use:\n"
         "- CSS selectors (e.g., '.my-card-class', 'div.item', 'a.item-link')\n"
         "- Role selectors (e.g., 'role=heading[name=\"Title\"]', 'role=link')\n"
@@ -107,7 +110,7 @@ async def get_selectors_from_llm(title: str, accessibility_tree: dict, body_text
         "  \"fields\": [\n"
         "    {\"name\": \"field_name\", \"selector\": \"relative Playwright selector (or '.' / 'self' for the row itself)\"}\n"
         "  ],\n"
-        "  \"explanation\": \"one plain English sentence describing what was found and will be extracted\"\n"
+        "  \"explanation\": \"one plain English sentence describing what was found and will be extracted (do not estimate or mention exact numeric counts in the explanation; describe the structure qualitatively)\"\n"
         "}\n\n"
         "Example of a valid response format (DO NOT USE THESE SELECTOR STRINGS):\n"
         "{\n"
@@ -116,7 +119,7 @@ async def get_selectors_from_llm(title: str, accessibility_tree: dict, body_text
         "    {\"name\": \"title\", \"selector\": \"h3.example-item-title-text\"},\n"
         "    {\"name\": \"price\", \"selector\": \"span.example-item-price-val\"}\n"
         "  ],\n"
-        "  \"explanation\": \"Found 24 repeating elements containing title and price fields.\"\n"
+        "  \"explanation\": \"Found repeating product elements containing title and price fields.\"\n"
         "}"
     )
     
