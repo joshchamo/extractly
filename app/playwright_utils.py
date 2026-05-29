@@ -172,8 +172,6 @@ async def fetch_page_analysis(url: str) -> dict:
                 filtered_nodes = []
                 tasks = []
                 for node in ordered_nodes:
-                    if node.get("ignored"):
-                        continue
                     role = node.get("role", {}).get("value") if isinstance(node.get("role"), dict) else node.get("role")
                     if role in ("StaticText", "InlineTextBox"):
                         continue
