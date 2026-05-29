@@ -291,15 +291,22 @@ async def extract_data(url: str, selector: str, fields: list[dict]) -> list[dict
                             
                             sub_el = row if is_self_match else await row.query_selector(field_sel_clean)
                             if sub_el:
-                                # Check if it's a link/image tag and might have useful attributes if text is empty
+                                # Check if it's a link/image tag and might have useful attributes
                                 tag_name = await sub_el.evaluate("el => el.tagName.toLowerCase()")
-                                val = await sub_el.text_content()
-                                val = val.strip() if val else ""
-                                if not val:
-                                    if tag_name == "a":
+                                if tag_name == "a":
+                                    # Prioritize the 'title' attribute if it contains the full text of the link
+                                    val = await sub_el.get_attribute("title") or ""
+                                    val = val.strip()
+                                    if not val:
+                                        val = await sub_el.text_content()
+                                        val = val.strip() if val else ""
+                                    if not val:
                                         val = await sub_el.get_attribute("href") or ""
-                                    elif tag_name == "img":
-                                        val = await sub_el.get_attribute("src") or ""
+                                elif tag_name == "img":
+                                    val = await sub_el.get_attribute("alt") or await sub_el.get_attribute("src") or ""
+                                else:
+                                    val = await sub_el.text_content()
+                                    val = val.strip() if val else ""
                             else:
                                 val = ""
                         
