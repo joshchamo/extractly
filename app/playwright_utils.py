@@ -156,6 +156,12 @@ async def fetch_page_analysis(url: str) -> dict:
                     node = node_map.get(node_id)
                     if not node:
                         return
+                        
+                    # Filter out layout/navigation boilerplate and their descendants
+                    role = node.get("role", {}).get("value") if isinstance(node.get("role"), dict) else node.get("role")
+                    if role in ("banner", "navigation", "complementary", "contentinfo"):
+                        return
+                        
                     ordered_nodes.append(node)
                     for cid in node.get("childIds", []):
                         dfs(cid)
@@ -289,6 +295,27 @@ async def extract_data(url: str, selector: str, fields: list[dict]) -> list[dict
                                 pass
                             
                             sub_el = row if is_self_match else await row.query_selector(field_sel_clean)
+                            
+                            # Loosen selector: if a tag-class selector (like span.title) fails to match, try matching only by class (.title)
+                            if not sub_el and not is_self_match and field_sel_clean and "." in field_sel_clean:
+                                parts = field_sel_clean.split(" ")
+                                modified = False
+                                for i, part in enumerate(parts):
+                                    if "." in part and not part.startswith("."):
+                                        sub_parts = part.split(".")
+                                        if sub_parts[0].isalnum():
+                                            parts[i] = "." + ".".join(sub_parts[1:])
+                                            modified = True
+                                if modified:
+                                    loosened_sel = " ".join(parts)
+                                    try:
+                                        found_el = await row.query_selector(loosened_sel)
+                                        if found_el:
+                                            sub_el = found_el
+                                            field_sel_clean = loosened_sel
+                                    except Exception:
+                                        pass
+                            
                             field_name_lower = name.lower()
                             
                             # Self-match correction: if a specific field like author, tags, price matches the parent row itself,
