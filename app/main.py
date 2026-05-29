@@ -47,8 +47,13 @@ async def extract(req: ExtractRequest):
         
     try:
         # Step 1: Page Analysis (navigates and retrieves text + accessibility tree)
+        print(f"[INFO] Fetching page analysis for url: {url}")
         analysis = await fetch_page_analysis(url)
+        print(f"[INFO] Retrieved page title: '{analysis.get('title')}'")
+        print(f"[INFO] Accessibility Tree node count: {len(analysis.get('accessibility_tree', {}).get('nodes', []))}")
+        print(f"[INFO] Body text length: {len(analysis.get('body_text', ''))}")
     except Exception as e:
+        print(f"[ERROR] Failed to fetch page analysis: {str(e)}")
         return JSONResponse(
             status_code=400,
             content={"detail": f"Failed to retrieve webpage. Please check the URL and try again. Error: {str(e)}"}
@@ -56,13 +61,16 @@ async def extract(req: ExtractRequest):
         
     try:
         # Step 2: Call LLM to identify selectors
+        print(f"[INFO] Calling LLM with prompt: '{prompt}'")
         llm_response = await get_selectors_from_llm(
             title=analysis["title"],
             accessibility_tree=analysis["accessibility_tree"],
             body_text=analysis["body_text"],
             prompt=prompt
         )
+        print(f"[INFO] LLM raw response: {llm_response}")
     except Exception as e:
+        print(f"[ERROR] LLM call failed: {str(e)}")
         return JSONResponse(
             status_code=400,
             content={"detail": str(e)}
@@ -73,6 +81,7 @@ async def extract(req: ExtractRequest):
     explanation = llm_response.get("explanation", "")
     
     if not selector or not fields:
+        print(f"[ERROR] LLM returned invalid/empty selectors: {llm_response}")
         return JSONResponse(
             status_code=400,
             content={"detail": "Could not identify a data structure on this page. Try rephrasing your request."}
@@ -80,14 +89,18 @@ async def extract(req: ExtractRequest):
         
     try:
         # Step 3: Extract data using selectors
+        print(f"[INFO] Extracting data using selector '{selector}' and fields {fields}")
         extracted_rows = await extract_data(url, selector, fields)
+        print(f"[INFO] Extraction results count: {len(extracted_rows)}")
     except Exception as e:
+        print(f"[ERROR] Data extraction failed: {str(e)}")
         return JSONResponse(
             status_code=500,
             content={"detail": f"Failed to extract elements using selectors. Error: {str(e)}"}
         )
         
     if not extracted_rows:
+        print(f"[ERROR] Zero rows extracted using selector '{selector}'")
         return JSONResponse(
             status_code=400,
             content={"detail": "No data items could be extracted with the generated selectors. Make sure the page has repeating items matching your description."}
