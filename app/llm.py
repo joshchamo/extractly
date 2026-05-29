@@ -48,22 +48,26 @@ def prepare_contents(title: str, accessibility_tree: dict, body_text: str) -> tu
     """
     Trims content defensively to stay safely under LLM token limits (approx 5000 tokens total).
     Prioritizes accessibility tree content over body text.
+    Ensures that the accessibility tree JSON remains valid and well-formed.
     """
-    tree_str = json.dumps(accessibility_tree)
+    nodes = accessibility_tree.get("nodes", [])
     
     # We aim to keep total characters of page context under 12,000 (roughly 3,000 tokens)
     max_combined = 12000
     
+    tree_str = json.dumps({"nodes": nodes})
+    
     if len(tree_str) + len(body_text) > max_combined:
-        # If tree is small, we truncate only body text
+        # If combined is too large, we truncate body text first (down to max 1000 characters)
         if len(tree_str) < 8000:
             allowed_body = max_combined - len(tree_str)
             body_text = body_text[:allowed_body]
         else:
-            # Tree is large: keep only 1000 chars of body, and truncate tree if needed
             body_text = body_text[:1000]
-            allowed_tree = max_combined - len(body_text)
-            tree_str = tree_str[:allowed_tree]
+            # Now truncate accessibility nodes list sequentially to guarantee valid JSON structure
+            while len(nodes) > 10 and len(json.dumps({"nodes": nodes})) + len(body_text) > max_combined:
+                nodes.pop()
+            tree_str = json.dumps({"nodes": nodes})
             
     return tree_str, body_text
 

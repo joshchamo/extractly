@@ -1,3 +1,4 @@
+import asyncio
 import socket
 import ipaddress
 from urllib.parse import urlparse
@@ -38,11 +39,33 @@ def is_safe_url(url: str) -> bool:
     except Exception:
         return False
 
+async def describe_node_safe(cdp, node_dict, backend_id):
+    """
+    Safely resolves a backendDOMNodeId to its HTML tag name, class, and id attributes via CDP.
+    """
+    try:
+        node_desc = await cdp.send("DOM.describeNode", {"backendNodeId": backend_id})
+        node_info = node_desc.get("node", {})
+        tag = node_info.get("localName")
+        attributes = node_info.get("attributes", [])
+        attr_dict = {}
+        for i in range(0, len(attributes), 2):
+            attr_dict[attributes[i]] = attributes[i+1]
+        
+        if tag:
+            node_dict["tag"] = tag
+        if attr_dict.get("class"):
+            node_dict["class"] = attr_dict.get("class")
+        if attr_dict.get("id"):
+            node_dict["id"] = attr_dict.get("id")
+    except Exception:
+        pass
+
 async def fetch_page_analysis(url: str) -> dict:
     """
     Navigates to URL, waits for JS content, and returns page metadata:
     - Page Title
-    - Accessibility Tree Snapshot
+    - Accessibility Tree Snapshot (enriched with HTML tags and CSS classes)
     - Body inner text (trimmed to 3000 chars)
     """
     if not is_safe_url(url):
@@ -77,9 +100,13 @@ async def fetch_page_analysis(url: str) -> dict:
             accessibility_tree = {}
             try:
                 cdp = await page.context.new_cdp_session(page)
+                # Enable DOM agent so we can describe nodes
+                await cdp.send("DOM.enable")
                 cdp_result = await cdp.send("Accessibility.getFullAXTree")
                 nodes = cdp_result.get("nodes", [])
+                
                 filtered_nodes = []
+                tasks = []
                 for node in nodes:
                     if node.get("ignored"):
                         continue
@@ -89,7 +116,15 @@ async def fetch_page_analysis(url: str) -> dict:
                         "name": node.get("name", {}).get("value") if isinstance(node.get("name"), dict) else node.get("name"),
                         "childIds": node.get("childIds", [])
                     }
+                    backend_id = node.get("backendDOMNodeId")
+                    if backend_id:
+                        tasks.append(describe_node_safe(cdp, simplified, backend_id))
                     filtered_nodes.append(simplified)
+                
+                # Fetch tag, class, and id for all nodes in parallel to avoid slow sequential calls
+                if tasks:
+                    await asyncio.gather(*tasks)
+                    
                 accessibility_tree = {"nodes": filtered_nodes}
             except Exception:
                 accessibility_tree = {}
