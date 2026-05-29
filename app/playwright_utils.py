@@ -88,7 +88,9 @@ async def fetch_page_analysis(url: str) -> dict:
             page.set_default_timeout(20000)
             
             # Navigate to target
-            await page.goto(url, wait_until="domcontentloaded")
+            response = await page.goto(url, wait_until="domcontentloaded")
+            if response and not response.ok:
+                raise ValueError(f"Server returned status {response.status}: {response.status_text or 'Error'}")
             
             # Wait 5 seconds for JS-rendered content
             await page.wait_for_timeout(5000)
@@ -166,7 +168,9 @@ async def extract_data(url: str, selector: str, fields: list[dict]) -> list[dict
             page.set_default_navigation_timeout(20000)
             page.set_default_timeout(20000)
             
-            await page.goto(url, wait_until="domcontentloaded")
+            response = await page.goto(url, wait_until="domcontentloaded")
+            if response and not response.ok:
+                raise ValueError(f"Server returned status {response.status}: {response.status_text or 'Error'}")
             await page.wait_for_timeout(5000)
             
             # Find all parent rows matching selector
