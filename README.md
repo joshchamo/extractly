@@ -2,7 +2,7 @@
 title: Extractly — Turn Any Webpage Into a Spreadsheet
 emoji: 🕸️
 colorFrom: indigo
-colorTo: cyan
+colorTo: purple
 sdk: docker
 pinned: false
 short_description: Extract data from any webpage using plain English — no code, no extensions, no setup
