@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extractly - NLP Web Scraper & Data Extractor</title>
+    
+    <!-- Google Fonts: Inter & Space Grotesk -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(22, 31, 48, 0.7);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --accent-indigo: #6366f1;
+            --accent-cyan: #06b6d4;
+            --accent-gradient: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+            --error-color: #ef4444;
+            --error-bg: rgba(239, 68, 68, 0.1);
+            --success-color: #10b981;
+            --success-bg: rgba(16, 185, 129, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.15) 0px, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem 1rem;
+            line-height: 1.5;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        /* Header Styles */
+        header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 3.5rem;
+            font-weight: 700;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.03em;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto;
+            font-weight: 400;
+        }
+
+        /* Card / Glassmorphism Styles */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            margin-bottom: 2rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(99, 102, 241, 0.25);
+        }
+
+        /* Form Controls */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+        }
+
+        input[type="url"], textarea {
+            width: 100%;
+            padding: 0.85rem 1rem;
+            background: rgba(11, 15, 25, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: all 0.25s ease;
+        }
+
+        input[type="url"]:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.2);
+            background: rgba(11, 15, 25, 0.8);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.85rem 1.75rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-decoration: none;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: var(--accent-gradient);
+            color: #ffffff;
+            width: 100%;
+            box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px 0 rgba(6, 182, 212, 0.5);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Collapsible robots.txt Disclosure */
+        .disclosure {
+            margin-top: 1.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        summary {
+            padding: 0.75rem 1rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.2s ease;
+        }
+
+        summary:hover {
+            color: var(--text-main);
+        }
+
+        .disclosure-content {
+            padding: 1rem;
+            border-top: 1px solid var(--border-color);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .disclosure-content pre {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* Inline Error State */
+        .error-message {
+            display: none;
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            background: var(--error-bg);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 8px;
+            color: var(--error-color);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        /* Loading Spinner and Status */
+        .loading-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2.5rem 0;
+            text-align: center;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid rgba(6, 182, 212, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--accent-cyan);
+            animation: spin 1s linear infinite;
+            margin-bottom: 1.25rem;
+        }
+
+        .status-text {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--text-main);
+            margin-bottom: 0.25rem;
+            min-height: 1.65rem;
+            transition: all 0.3s ease;
+        }
+
+        .status-sub {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Results Display */
+        .results-container {
+            display: none;
+        }
+
+        .results-header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 1.25rem;
+            gap: 1rem;
+        }
+
+        .results-meta {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .explanation {
+            font-size: 1.05rem;
+            font-weight: 500;
+            color: var(--text-main);
+            margin-bottom: 0.25rem;
+        }
+
+        .row-count {
+            font-size: 0.85rem;
+            color: var(--accent-cyan);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .btn-download {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #ffffff;
+            box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-download:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px 0 rgba(16, 185, 129, 0.4);
+        }
+
+        /* Table Design */
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            margin-top: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background: rgba(22, 31, 48, 0.9);
+            color: var(--text-main);
+            font-weight: 600;
+            padding: 0.85rem 1rem;
+            border-bottom: 2px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-muted);
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* Footer */
+        footer {
+            margin-top: auto;
+            padding: 2rem 0;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-color);
+            width: 100%;
+        }
+
+        footer a {
+            color: var(--accent-cyan);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Application Header -->
+        <header>
+            <h1>Extractly</h1>
+            <p class="subtitle">Extract any data from any page — just describe what you want in plain English</p>
+        </header>
+
+        <!-- Configuration Card -->
+        <div class="card">
+            <form id="extractor-form">
+                <div class="form-group">
+                    <label for="url-input">Target URL</label>
+                    <input 
+                        type="url" 
+                        id="url-input" 
+                        placeholder="https://example.com/products" 
+                        required
+                        autocomplete="off"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="prompt-input">What data would you like to extract?</label>
+                    <textarea 
+                        id="prompt-input" 
+                        placeholder="e.g. Extract the names, prices, and star ratings of all the books listed on this page."
+                        required
+                    ></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="submit-btn">Extract Data</button>
+            </form>
+
+            <!-- Inline Error Messages -->
+            <div class="error-message" id="error-box"></div>
+
+            <!-- robots.txt Informational Disclosure -->
+            <details class="disclosure" id="robots-details">
+                <summary id="robots-summary">Robots.txt Status (No URL entered)</summary>
+                <div class="disclosure-content">
+                    <pre id="robots-content">Enter a target URL to check its robots.txt file.</pre>
+                </div>
+            </details>
+        </div>
+
+        <!-- Loading Card -->
+        <div class="card loading-container" id="loading-box">
+            <div class="spinner"></div>
+            <div class="status-text" id="status-message">Fetching page...</div>
+            <div class="status-sub">Please hold on, standard extraction takes 10-15 seconds.</div>
+        </div>
+
+        <!-- Results Card -->
+        <div class="card results-container" id="results-box">
+            <div class="results-header">
+                <div class="results-meta">
+                    <div class="explanation" id="results-explanation"></div>
+                    <div class="row-count" id="results-count"></div>
+                </div>
+                <a href="#" class="btn btn-download" id="download-btn">Download CSV</a>
+            </div>
+            
+            <div class="table-wrapper">
+                <table>
+                    <thead id="table-head"></thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 Extractly. Powered by Playwright & Groq API. Designed for HuggingFace Spaces.</p>
+    </footer>
+
+    <script>
+        const form = document.getElementById('extractor-form');
+        const urlInput = document.getElementById('url-input');
+        const promptInput = document.getElementById('prompt-input');
+        const submitBtn = document.getElementById('submit-btn');
+        const errorBox = document.getElementById('error-box');
+        
+        const loadingBox = document.getElementById('loading-box');
+        const statusMessage = document.getElementById('status-message');
+        
+        const resultsBox = document.getElementById('results-box');
+        const resultsExplanation = document.getElementById('results-explanation');
+        const resultsCount = document.getElementById('results-count');
+        const downloadBtn = document.getElementById('download-btn');
+        
+        const tableHead = document.getElementById('table-head');
+        const tableBody = document.getElementById('table-body');
+        
+        const robotsDetails = document.getElementById('robots-details');
+        const robotsSummary = document.getElementById('robots-summary');
+        const robotsContent = document.getElementById('robots-content');
+
+        let isLoading = false;
+        let lastRobotsUrl = "";
+
+        // Trigger robots.txt fetch when URL changes or loses focus
+        urlInput.addEventListener('blur', fetchRobots);
+        urlInput.addEventListener('change', fetchRobots);
+        robotsDetails.addEventListener('toggle', () => {
+            if (robotsDetails.open) {
+                fetchRobots();
+            }
+        });
+
+        async function fetchRobots() {
+            const url = urlInput.value.trim();
+            if (!url) {
+                robotsSummary.innerText = "Robots.txt Status (No URL entered)";
+                robotsContent.innerText = "Enter a target URL to check its robots.txt file.";
+                return;
+            }
+
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                robotsSummary.innerText = "Robots.txt Status (Invalid URL format)";
+                robotsContent.innerText = "The URL must start with http:// or https:// to check robots.txt.";
+                return;
+            }
+
+            // Avoid double fetching identical urls
+            if (url === lastRobotsUrl) return;
+
+            try {
+                const parsed = new URL(url);
+                const domain = parsed.hostname;
+                robotsSummary.innerText = `Robots.txt Status (Checking ${domain}...)`;
+                robotsContent.innerText = `Retrieving robots.txt from ${parsed.protocol}//${parsed.host}/robots.txt...`;
+
+                const res = await fetch('/robots', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url })
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    robotsSummary.innerText = `Robots.txt Status (Loaded for ${domain})`;
+                    robotsContent.innerText = data.content;
+                    lastRobotsUrl = url;
+                } else {
+                    robotsSummary.innerText = `Robots.txt Status (Unavailable for ${domain})`;
+                    robotsContent.innerText = "Could not fetch robots.txt file from this host.";
+                }
+            } catch (err) {
+                robotsSummary.innerText = "Robots.txt Status (Error parsing URL)";
+                robotsContent.innerText = "Please provide a valid web URL.";
+            }
+        }
+
+        // Form Submit Extraction Logic
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const url = urlInput.value.trim();
+            const prompt = promptInput.value.trim();
+            
+            if (!url || !prompt) return;
+
+            // Reset states
+            errorBox.style.display = 'none';
+            resultsBox.style.display = 'none';
+            isLoading = true;
+            
+            // Show loading panel and disable submit button
+            loadingBox.style.display = 'flex';
+            submitBtn.disabled = true;
+            
+            // Start sequential status loop
+            statusMessage.innerText = "Fetching page...";
+            
+            const status1 = setTimeout(() => {
+                if (isLoading) statusMessage.innerText = "Analyzing structure...";
+            }, 5500); // Wait 5.5s (corresponds to page navigate + wait_for_timeout 5s)
+            
+            const status2 = setTimeout(() => {
+                if (isLoading) statusMessage.innerText = "Extracting data...";
+            }, 8500); // Let LLM finish analysis, transition to selector matching
+
+            try {
+                const response = await fetch('/extract', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, prompt })
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || "An unexpected error occurred during extraction.");
+                }
+
+                // Render Results
+                renderResults(data);
+            } catch (err) {
+                errorBox.innerText = err.message;
+                errorBox.style.display = 'block';
+            } finally {
+                // Clear state
+                isLoading = false;
+                clearTimeout(status1);
+                clearTimeout(status2);
+                loadingBox.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        });
+
+        function renderResults(data) {
+            resultsExplanation.innerText = data.explanation;
+            resultsCount.innerText = `${data.row_count} row${data.row_count === 1 ? '' : 's'} extracted`;
+            
+            // Setup Download CSV Button Link
+            downloadBtn.href = `/download?session_id=${data.session_id}`;
+            
+            // Clear existing table content
+            tableHead.innerHTML = '';
+            tableBody.innerHTML = '';
+            
+            // Build table headers
+            const headerRow = document.createElement('tr');
+            data.columns.forEach(col => {
+                const th = document.createElement('th');
+                th.innerText = col;
+                headerRow.appendChild(th);
+            });
+            tableHead.appendChild(headerRow);
+            
+            // Build table body rows
+            data.rows.forEach(rowData => {
+                const tr = document.createElement('tr');
+                rowData.forEach(cellValue => {
+                    const td = document.createElement('td');
+                    td.innerText = cellValue !== null && cellValue !== undefined ? cellValue : '';
+                    // Set title attribute for hover support on truncated values
+                    td.title = td.innerText;
+                    tr.appendChild(td);
+                });
+                tableBody.appendChild(tr);
+            });
+            
+            // Reveal results
+            resultsBox.style.display = 'block';
+            
+            // Scroll results into view
+            resultsBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    </script>
+</body>
+</html>
