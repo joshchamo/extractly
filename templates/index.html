@@ -370,6 +370,47 @@
         footer a:hover {
             text-decoration: underline;
         }
+
+        /* Example Chips */
+        .examples-container {
+            margin-bottom: 1.5rem;
+        }
+
+        .examples-label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .examples-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .chip {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--text-main);
+            padding: 0.4rem 0.85rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .chip:hover {
+            border-color: var(--accent-cyan);
+            background: rgba(6, 182, 212, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .chip:active {
+            transform: translateY(0);
+        }
     </style>
 </head>
 <body>
@@ -401,6 +442,15 @@
                         placeholder="e.g. Extract the names, prices, and star ratings of all the books listed on this page."
                         required
                     ></textarea>
+                </div>
+                
+                <div class="examples-container">
+                    <div class="examples-label">Try an example:</div>
+                    <div class="examples-chips">
+                        <button type="button" class="chip" data-url="https://news.ycombinator.com/" data-prompt="Extract the title and link of each news item">Hacker News Headlines</button>
+                        <button type="button" class="chip" data-url="https://books.toscrape.com/" data-prompt="Extract the titles and prices of all books on the page">Book Titles & Prices</button>
+                        <button type="button" class="chip" data-url="https://quotes.toscrape.com/" data-prompt="Extract the quote text, author, and tags">Quotes & Authors</button>
+                    </div>
                 </div>
 
                 <button type="submit" class="btn btn-primary" id="submit-btn">Extract Data</button>
@@ -622,6 +672,23 @@
             // Scroll results into view
             resultsBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
+
+        // Handle example chip clicks
+        const chips = document.querySelectorAll('.chip');
+        chips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                urlInput.value = chip.getAttribute('data-url');
+                promptInput.value = chip.getAttribute('data-prompt');
+                // Trigger fetchRobots since we changed URL
+                fetchRobots();
+                // Trigger form submission
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    form.dispatchEvent(new Event('submit', { cancelable: true }));
+                }
+            });
+        });
     </script>
 </body>
 </html>
