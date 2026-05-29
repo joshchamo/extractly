@@ -290,23 +290,74 @@ async def extract_data(url: str, selector: str, fields: list[dict]) -> list[dict
                                 pass
                             
                             sub_el = row if is_self_match else await row.query_selector(field_sel_clean)
+                            
+                            # Guard 1: If title field matches multiple elements and the first is just a rank/number
+                            field_name_lower = name.lower()
+                            if sub_el and field_name_lower in ("title", "name") and not is_self_match:
+                                all_matches = await row.query_selector_all(field_sel_clean)
+                                if len(all_matches) > 1:
+                                    first_text = (await all_matches[0].text_content() or "").strip().rstrip(".")
+                                    if first_text.isdigit() or len(first_text) <= 3:
+                                        for candidate in all_matches[1:]:
+                                            cand_text = (await candidate.text_content() or "").strip()
+                                            if cand_text and not cand_text.isdigit() and len(cand_text) > len(first_text):
+                                                sub_el = candidate
+                                                break
+                                                
+                            # Guard 2: If link field matches a utility link, look for a better link in the container
+                            if sub_el and field_name_lower in ("link", "url", "href") and not is_self_match:
+                                tag_name = await sub_el.evaluate("el => el.tagName.toLowerCase()")
+                                if tag_name == "a":
+                                    href_val = await sub_el.get_attribute("href") or ""
+                                    if "vote?" in href_val or "flag?" in href_val or "goto=" in href_val or not href_val:
+                                        # Try to find a better anchor in the same row
+                                        all_anchors = await row.query_selector_all("a")
+                                        for anchor in all_anchors:
+                                            a_href = await anchor.get_attribute("href") or ""
+                                            if a_href and not any(k in a_href for k in ("vote?", "flag?", "goto=")):
+                                                sub_el = anchor
+                                                break
+                                                
                             if sub_el:
                                 # Check if it's a link/image tag and might have useful attributes
                                 tag_name = await sub_el.evaluate("el => el.tagName.toLowerCase()")
                                 if tag_name == "a":
-                                    # Prioritize the 'title' attribute if it contains the full text of the link
-                                    val = await sub_el.get_attribute("title") or ""
-                                    val = val.strip()
-                                    if not val:
-                                        val = await sub_el.text_content()
-                                        val = val.strip() if val else ""
-                                    if not val:
-                                        val = await sub_el.get_attribute("href") or ""
+                                    # If the field name suggests it is a link/URL, prioritize the href attribute
+                                    if field_name_lower in ("link", "url", "href"):
+                                        href_attr = await sub_el.get_attribute("href") or ""
+                                        if href_attr and not href_attr.startswith(("http://", "https://", "mailto:", "tel:")):
+                                            parsed_base = urlparse(url)
+                                            val = f"{parsed_base.scheme}://{parsed_base.netloc}/{href_attr.lstrip('/')}"
+                                        else:
+                                            val = href_attr
+                                    else:
+                                        # Prioritize the 'title' attribute if it contains the full text of the link
+                                        val = await sub_el.get_attribute("title") or ""
+                                        val = val.strip()
+                                        if not val:
+                                            val = await sub_el.text_content()
+                                            val = val.strip() if val else ""
+                                        if not val:
+                                            # Check if there is an image child with alt text
+                                            img_child = await sub_el.query_selector("img")
+                                            if img_child:
+                                                val = await img_child.get_attribute("alt") or ""
+                                                val = val.strip()
+                                        if not val:
+                                            val = await sub_el.get_attribute("href") or ""
                                 elif tag_name == "img":
                                     val = await sub_el.get_attribute("alt") or await sub_el.get_attribute("src") or ""
                                 else:
                                     val = await sub_el.text_content()
                                     val = val.strip() if val else ""
+                                    
+                                # Truncation check fallback
+                                if val.endswith("...") or val.endswith("…"):
+                                    anchor = sub_el if tag_name == "a" else await sub_el.query_selector("a")
+                                    if anchor:
+                                        full_title = await anchor.get_attribute("title")
+                                        if full_title and len(full_title) > len(val) - 3:
+                                            val = full_title
                             else:
                                 val = ""
                         
