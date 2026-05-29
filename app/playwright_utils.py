@@ -112,12 +112,15 @@ async def fetch_page_analysis(url: str) -> dict:
                 for node in nodes:
                     if node.get("ignored"):
                         continue
-                    simplified = {
-                        "nodeId": node.get("nodeId"),
-                        "role": node.get("role", {}).get("value") if isinstance(node.get("role"), dict) else node.get("role"),
-                        "name": node.get("name", {}).get("value") if isinstance(node.get("name"), dict) else node.get("name"),
-                        "childIds": node.get("childIds", [])
-                    }
+                    role = node.get("role", {}).get("value") if isinstance(node.get("role"), dict) else node.get("role")
+                    if role in ("StaticText", "InlineTextBox"):
+                        continue
+                        
+                    simplified = {"role": role}
+                    name = node.get("name", {}).get("value") if isinstance(node.get("name"), dict) else node.get("name")
+                    if name:
+                        simplified["name"] = name
+                        
                     backend_id = node.get("backendDOMNodeId")
                     if backend_id:
                         tasks.append(describe_node_safe(cdp, simplified, backend_id))
@@ -127,7 +130,24 @@ async def fetch_page_analysis(url: str) -> dict:
                 if tasks:
                     await asyncio.gather(*tasks)
                     
-                accessibility_tree = {"nodes": filtered_nodes}
+                cleaned_nodes = []
+                for node in filtered_nodes:
+                    role = node.get("role", "")
+                    name = node.get("name", "")
+                    cls = node.get("class", "")
+                    id_ = node.get("id", "")
+                    
+                    if not name and not cls and not id_ and role in ("generic", "none", "", None):
+                        continue
+                        
+                    cleaned = {"role": role}
+                    if name: cleaned["name"] = name
+                    if cls: cleaned["class"] = cls
+                    if id_: cleaned["id"] = id_
+                    if node.get("tag"): cleaned["tag"] = node["tag"]
+                    cleaned_nodes.append(cleaned)
+                    
+                accessibility_tree = {"nodes": cleaned_nodes}
             except Exception:
                 accessibility_tree = {}
             
