@@ -139,4 +139,5 @@ Open `http://localhost:7860`
 ---
 
 *Built with FastAPI + Playwright + Groq. 
-Part of an ongoing series of AI automation tools.* Developer: Josh Chamo [joshchamo@gmail.com] [GitHub: https://github.com/joshchamo/extractly]
+Part of an ongoing series of AI automation tools.*  
+Developer: Josh Chamo [joshchamo@gmail.com] 
