@@ -27,7 +27,7 @@ class RobotsRequest(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 @app.post("/extract")
 async def extract(req: ExtractRequest):
