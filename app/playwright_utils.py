@@ -188,7 +188,13 @@ async def extract_data(url: str, selector: str, fields: list[dict]) -> list[dict
                         if not field_sel or field_sel.strip() in ("", ".", "self"):
                             val = await row.text_content()
                         else:
-                            sub_el = await row.query_selector(field_sel)
+                            is_self_match = False
+                            try:
+                                is_self_match = await row.evaluate("(el, sel) => el.matches(sel)", field_sel)
+                            except Exception:
+                                pass
+                            
+                            sub_el = row if is_self_match else await row.query_selector(field_sel)
                             if sub_el:
                                 # Check if it's a link/image tag and might have useful attributes if text is empty
                                 tag_name = await sub_el.evaluate("el => el.tagName.toLowerCase()")
