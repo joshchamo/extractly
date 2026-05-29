@@ -107,20 +107,80 @@ async def fetch_page_analysis(url: str) -> dict:
                 cdp_result = await cdp.send("Accessibility.getFullAXTree")
                 nodes = cdp_result.get("nodes", [])
                 
+                # Build maps
+                node_map = {node.get("nodeId"): node for node in nodes if node.get("nodeId")}
+                parent_map = {}
+                for node in nodes:
+                    nid = node.get("nodeId")
+                    cids = node.get("childIds", [])
+                    for cid in cids:
+                        parent_map[cid] = nid
+                        
+                # Propagate text from StaticText/InlineTextBox to parent
+                for node in nodes:
+                    role = node.get("role", {}).get("value") if isinstance(node.get("role"), dict) else node.get("role")
+                    if role in ("StaticText", "InlineTextBox"):
+                        name_val = node.get("name", {}).get("value") if isinstance(node.get("name"), dict) else node.get("name")
+                        if name_val:
+                            nid = node.get("nodeId")
+                            pid = parent_map.get(nid)
+                            if pid and pid in node_map:
+                                parent = node_map[pid]
+                                curr_name = parent.get("name", {}).get("value") if isinstance(parent.get("name"), dict) else parent.get("name")
+                                if not curr_name:
+                                    parent["name"] = {"value": name_val}
+                                else:
+                                    if isinstance(parent.get("name"), dict):
+                                        parent["name"]["value"] = str(parent["name"]["value"]) + " " + str(name_val)
+                                    else:
+                                        parent["name"] = str(parent["name"]) + " " + str(name_val)
+                                        
+                # Perform DFS to order nodes in document hierarchy
+                ordered_nodes = []
+                visited = set()
+                
+                root_node = None
+                for node in nodes:
+                    role = node.get("role", {}).get("value") if isinstance(node.get("role"), dict) else node.get("role")
+                    if role == "RootWebArea":
+                        root_node = node
+                        break
+                if not root_node and nodes:
+                    root_node = nodes[0]
+                    
+                def dfs(node_id):
+                    if node_id in visited:
+                        return
+                    visited.add(node_id)
+                    node = node_map.get(node_id)
+                    if not node:
+                        return
+                    ordered_nodes.append(node)
+                    for cid in node.get("childIds", []):
+                        dfs(cid)
+                        
+                if root_node:
+                    dfs(root_node.get("nodeId"))
+                    
+                # Append any leftover unvisited nodes just in case
+                for node in nodes:
+                    nid = node.get("nodeId")
+                    if nid not in visited:
+                        ordered_nodes.append(node)
+                        
+                # Simplify and describe in DFS order
                 filtered_nodes = []
                 tasks = []
-                for node in nodes:
+                for node in ordered_nodes:
                     if node.get("ignored"):
                         continue
                     role = node.get("role", {}).get("value") if isinstance(node.get("role"), dict) else node.get("role")
                     if role in ("StaticText", "InlineTextBox"):
                         continue
-                        
                     simplified = {"role": role}
                     name = node.get("name", {}).get("value") if isinstance(node.get("name"), dict) else node.get("name")
                     if name:
                         simplified["name"] = name
-                        
                     backend_id = node.get("backendDOMNodeId")
                     if backend_id:
                         tasks.append(describe_node_safe(cdp, simplified, backend_id))
@@ -208,17 +268,28 @@ async def extract_data(url: str, selector: str, fields: list[dict]) -> list[dict
                         continue
                     
                     try:
+                        field_sel_clean = field_sel.strip() if field_sel else ""
+                        
+                        # Auto-strip parent selector prefix if LLM generates absolute selectors
+                        if field_sel_clean.startswith(selector):
+                            field_sel_clean = field_sel_clean[len(selector):].strip()
+                            if field_sel_clean.startswith(">") or field_sel_clean.startswith(" "):
+                                field_sel_clean = field_sel_clean.lstrip("> ").strip()
+                                
+                        if not field_sel_clean:
+                            field_sel_clean = "self"
+
                         # Extract relative to parent row
-                        if not field_sel or field_sel.strip() in ("", ".", "self"):
+                        if field_sel_clean in (".", "self"):
                             val = await row.text_content()
                         else:
                             is_self_match = False
                             try:
-                                is_self_match = await row.evaluate("(el, sel) => el.matches(sel)", field_sel)
+                                is_self_match = await row.evaluate("(el, sel) => el.matches(sel)", field_sel_clean)
                             except Exception:
                                 pass
                             
-                            sub_el = row if is_self_match else await row.query_selector(field_sel)
+                            sub_el = row if is_self_match else await row.query_selector(field_sel_clean)
                             if sub_el:
                                 # Check if it's a link/image tag and might have useful attributes if text is empty
                                 tag_name = await sub_el.evaluate("el => el.tagName.toLowerCase()")
