@@ -1,4 +1,5 @@
 import asyncio
+import re
 import socket
 import ipaddress
 from urllib.parse import urlparse
@@ -288,9 +289,27 @@ async def extract_data(url: str, selector: str, fields: list[dict]) -> list[dict
                                 pass
                             
                             sub_el = row if is_self_match else await row.query_selector(field_sel_clean)
+                            field_name_lower = name.lower()
+                            
+                            # Self-match correction: if a specific field like author, tags, price matches the parent row itself,
+                            # try to find a narrower child element instead.
+                            if is_self_match and field_name_lower in ("author", "tags", "tag", "price", "title", "name"):
+                                candidates = []
+                                if field_name_lower == "author":
+                                    candidates = [".author", "small", "[itemprop='author']", ".author-name"]
+                                elif field_name_lower in ("tags", "tag"):
+                                    candidates = [".tags", ".tag", "a.tag", ".categories"]
+                                elif field_name_lower == "price":
+                                    candidates = [".price", ".price_color", "span.price", ".price-value"]
+                                    
+                                for cand in candidates:
+                                    found = await row.query_selector(cand)
+                                    if found:
+                                        sub_el = found
+                                        is_self_match = False
+                                        break
                             
                             # Guard 1: If title field matches multiple elements and the first is just a rank/number
-                            field_name_lower = name.lower()
                             if sub_el and field_name_lower in ("title", "name") and not is_self_match:
                                 all_matches = await row.query_selector_all(field_sel_clean)
                                 if len(all_matches) > 1:
@@ -359,7 +378,48 @@ async def extract_data(url: str, selector: str, fields: list[dict]) -> list[dict
                             else:
                                 val = ""
                         
-                        row_data[name] = val.strip() if val else ""
+                        # Clean up value as requested
+                        val_cleaned = val.strip() if val else ""
+                        if val_cleaned:
+                            # Strip '(about)' if present anywhere in the value
+                            val_cleaned = re.sub(r'\(about\)', '', val_cleaned, flags=re.IGNORECASE).strip()
+                            
+                            # Strip common label prefixes
+                            if val_cleaned.lower().startswith("by "):
+                                val_cleaned = val_cleaned[3:].strip()
+                            if val_cleaned.lower().startswith("tags:"):
+                                val_cleaned = val_cleaned[5:].strip()
+                            elif val_cleaned.lower().startswith("tags"):
+                                rest = val_cleaned[4:].lstrip()
+                                if len(rest) < len(val_cleaned) - 4:
+                                    val_cleaned = rest
+                                    
+                            # Add special handling for fields where the LLM selector targets a container 
+                            # with multiple child elements (like tags). 
+                            # If the result contains multiple newline-separated short words, split them, 
+                            # strip each one, filter empty strings, and rejoin as a comma-separated string.
+                            if "\n" in val_cleaned:
+                                parts = [p.strip() for p in val_cleaned.split("\n")]
+                                parts = [p for p in parts if p]
+                                
+                                # Remove any remaining tag-like labels from the list (like "tags")
+                                cleaned_parts = []
+                                for p in parts:
+                                    p_low = p.lower()
+                                    if p_low in ("tags:", "tags", "tag:", "tag"):
+                                        continue
+                                    cleaned_parts.append(p)
+                                    
+                                if len(cleaned_parts) > 1 and all(len(p) < 30 for p in cleaned_parts):
+                                    val_cleaned = ", ".join(cleaned_parts)
+                                else:
+                                    # Strip newlines and collapse multiple spaces to single spaces
+                                    val_cleaned = re.sub(r'\s+', ' ', val_cleaned).strip()
+                            else:
+                                # Collapse multiple spaces to single spaces
+                                val_cleaned = re.sub(r'\s+', ' ', val_cleaned).strip()
+                        
+                        row_data[name] = val_cleaned
                     except Exception:
                         row_data[name] = ""
                         

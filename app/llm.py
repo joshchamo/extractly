@@ -98,6 +98,8 @@ async def get_selectors_from_llm(title: str, accessibility_tree: dict, body_text
         "CRITICAL REQUIREMENT 4 (PRIMARY LINK TARGETING):\n"
         "When extracting a link or URL representing the item's main URL, do NOT target utility or layout links (like upvote arrows, category tags, author profiles, comments links, or share buttons). "
         "You MUST target the main href link of the item (usually containing the title text or matching the main click target).\n\n"
+        "CRITICAL REQUIREMENT 5 (LIST/MULTI-VALUE FIELDS):\n"
+        "For fields that contain lists of items such as tags or categories, identify the parent container selector and note in the field name that it contains multiple values. The extraction will handle joining them.\n\n"
         "Playwright supports multiple selector engines. You can use:\n"
         "- CSS selectors (e.g., '.my-card-class', 'div.item', 'a.item-link')\n"
         "- Role selectors (e.g., 'role=heading[name=\"Title\"]', 'role=link')\n"
